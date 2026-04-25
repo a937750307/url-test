@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+ 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网站监测工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+ 
+        /* 调整左右面板的高度，减去一行日志的大致高度（假设为 30px） */
+        .main-content {
+            display: flex;
+            flex: 1;
+            align-items: stretch;
+        }
+
+        .left-panel,
+        .right-panel {
+            flex: 1;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            height: calc(100vh - 40px - 30px);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+ 
+        .right-panel {
+            flex: 2;
+        }
+ 
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: -12px;
+            margin-bottom: 18px;
+        }
+ 
+        .input-container {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+ 
+        input {
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            flex: 1;
+            transition: all 0.3s ease;
+        }
+ 
+        input.invalid {
+            color: red;
+            animation: shake 0.5s ease-in-out 3;
+        }
+ 
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-5px);
+            }
+            50% {
+                transform: translateX(5px);
+            }
+            75% {
+                transform: translateX(-5px);
+            }
+            100% {
+                transform: translateX(0);
+            }
+        }
+ 
+        button {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+ 
+        button:hover {
+            background-color: #0056b3;
+        }
+ 
+        #monitor-button.started {
+            background-color: #dc3545;
+        }
+ 
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin-top: 10px;
+            /* 假设每个网址高度约 30px，显示 5 个网址的高度 */
+            height: calc(5 * (30px + 5px));
+            overflow-y: auto;
+            flex: 1;
+        }
+ 
+        li {
+            background-color: #f4f4f9;
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            display: grid;
+            grid-template-columns: 90px 1fr;
+            grid-column-gap: 10px;
+            align-items: center;
+            align-content: start;
+        }
+        li .url-text {
+            grid-column: 2 / 3;
+            /* 强力换行规则，确保长链接折行 */
+            word-break: break-all;
+            overflow-wrap: anywhere;
+            white-space: normal;
+            display: block;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        a.url-text {
+            color: inherit;
+            text-decoration: none;
+        }
+        a.url-text:hover {
+            text-decoration: underline;
+        }
+        #export-logs {
+            margin-top: 10px;
+        }
+        li button {
+            grid-column: 1 / 2;
+            justify-self: start;
+            width: 70px;
+        }
+ 
+        #log-container {
+            margin-top: 10px;
+            height: calc(11 * (30px + 5px));
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+        }
+ 
+        #filter-container {
+            margin-bottom: 10px;
+        }
+ 
+        #filter-url {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100%;
+        }
+        /* 手机端适配 */
+        @media (max-width: 600px) {
+            body {
+                flex-direction: column;
+                height: auto;
+            }
+            .main-content {
+                flex-direction: column;
+            }
+            .left-panel,
+            .right-panel {
+                margin: 10px;
+                padding: 15px;
+                height: auto;
+                width: auto;
+            }
+            .right-panel {
+                order: 2;
+            }
+            .left-panel {
+                order: 1;
+            }
+            .input-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            input {
+                margin-right: 0;
+                margin-bottom: 8px;
+                width: 100%;
+            }
+            button {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+            li {
+                grid-template-columns: 60px 1fr;
+            }
+            li button {
+                width: 56px;
+            }
+            h1 { font-size: 18px; }
+            .subtitle { font-size: 11px; }
+            #log-container { height: 300px; }
+        }
+        /* footer 样式 */
+        #site-footer {
+            width: 100%;
+            background: transparent;
+            padding: 8px 20px;
+            box-sizing: border-box;
+            margin-top: 12px; /* 与页面内容分开，不紧贴底部 */
+        }
+        #site-footer .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: nowrap;
+        }
+        #site-footer .footer-inner a {
+            color: #000;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        #site-footer .footer-inner img {
+            height: 16px;
+            width: 16px;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+        #site-footer .notice {
+            color: red;
+            font-size: 13px;
+        }
+        /* 在桌面端保持单行不换行 */
+        @media (min-width: 601px) {
+            #site-footer .footer-inner { flex-wrap: nowrap; }
+        }
+        /* 手机端分三行，字体小一点 */
+        @media (max-width: 600px) {
+            #site-footer .footer-inner {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            /* 备案信息居中显示 */
+            #site-footer .footer-inner { align-items: center; text-align: center; }
+            #site-footer .footer-inner .notice,
+            #site-footer .footer-inner a {
+                font-size: 12px;
+                line-height: 1.2;
+            }
+            /* 强制每项独立一行 */
+            #site-footer .footer-inner a.gongan-link,
+            #site-footer .footer-inner .beian-link {
+                display: block;
+            }
+        }
+    </style>
+</head>
+ 
+<body>
+    <div class="main-content">
+    <div class="left-panel">
+        <h1>网站监测工具</h1>
+        <div class="subtitle">监测基于本机当前网络环境进行</div>
+        <div class="input-container">
+            <input type="text" id="url-input" placeholder="输入要监测的网页地址">
+            <button id="add-url">添加网址</button>
+        </div>
+        <div class="input-container">
+            <input type="file" id="bookmark-file" accept=".html">
+            <button id="import-bookmarks">导入收藏夹</button>
+        </div>
+        <div class="input-container">
+            <button id="check-once-button" style="margin-left:8px;background:#28a745">监测一次</button>
+        </div>
+        <ul id="url-list"></ul>
+    </div>
+    <div class="right-panel">
+        <div id="filter-container">
+            <label for="filter-url">筛选网址:</label>
+            <select id="filter-url">
+                <option value="">全部</option>
+            </select>
+            <button id="export-logs" style="margin-left:8px;background:#28a745">导出日志</button>
+        </div>
+        <div id="log-container"></div>
+    </div>
+    </div>
+    <script>
+        const urlInput = document.getElementById('url-input');
+        const addUrlButton = document.getElementById('add-url');
+        const intervalInput = null;
+        const monitorButton = null;
+        const urlList = document.getElementById('url-list');
+        const logContainer = document.getElementById('log-container');
+        const filterUrlSelect = document.getElementById('filter-url');
+        const bookmarkFileInput = document.getElementById('bookmark-file');
+        const importBookmarksButton = document.getElementById('import-bookmarks');
+        const checkOnceButton = document.getElementById('check-once-button');
+        const exportLogsButton = document.getElementById('export-logs');
+ 
+        let urls = [];
+        let logs = [];
+        let intervalId = null;
+        let isCheckingOnce = false;
+        let ongoingControllers = [];
+        let stopRequested = false;
+        // 控制并发请求，避免大量并发请求导致页面卡顿
+        const CONCURRENCY_LIMIT = 5;
+        let activeCount = 0;
+        const requestQueue = [];
+
+        let queueProcessing = false;
+        async function processQueue() {
+            if (queueProcessing) return;
+            queueProcessing = true;
+            try {
+                while (!stopRequested && activeCount < CONCURRENCY_LIMIT && requestQueue.length > 0) {
+                    // 启动尽可能多的并发任务，但避免一次性创建大量微任务
+                    while (activeCount < CONCURRENCY_LIMIT && requestQueue.length > 0 && !stopRequested) {
+                        const item = requestQueue.shift();
+                        const url = item.url;
+                        const retryCount = item.retryCount || 0;
+                        const method = item.method || 'HEAD';
+                        activeCount++;
+                        // 不等待，后台执行并发请求，但控制并发数
+                        (async () => {
+                            try {
+                                await checkUrl(url, retryCount, method);
+                            } catch (e) {}
+                            activeCount--;
+                            // 当一个请求完成后，继续处理队列
+                            setTimeout(() => { if (!stopRequested) processQueue(); }, 0);
+                        })();
+                    }
+                    // 让出线程，避免长时间占用
+                    await new Promise(res => setTimeout(res, 0));
+                }
+            } finally {
+                queueProcessing = false;
+            }
+        }
+
+        function scheduleCheck(url, retryCount = 0, method = 'HEAD') {
+            // 优先尝试 HEAD 方法，若 HEAD 返回异常再尝试 GET（由 processQueue 调度）
+            requestQueue.push({ url, retryCount, method });
+            // 只触发一次处理器，避免多次 setTimeout 导致大量微任务
+            setTimeout(() => { if (!stopRequested) processQueue(); }, 0);
+        }
+        const MAX_RETRIES = 3;
+        const MAX_LOGS = 1000;
+        let isNetworkConnected = true;
+ 
+        addUrlButton.addEventListener('click', () => {
+            let url = urlInput.value.trim();
+            if (!url) {
+                urlInput.classList.add('invalid');
+                setTimeout(() => {
+                    urlInput.classList.remove('invalid');
+                }, 1500);
+                alert('请输入有效的网址');
+                return;
+            }
+            if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('www.')) {
+                url = 'https://' + url;
+            } else if (url.startsWith('www.')) {
+                url = 'https://' + url;
+            }
+            if (!/^https?:\/\/.+/i.test(url)) {
+                urlInput.classList.add('invalid');
+                setTimeout(() => {
+                    urlInput.classList.remove('invalid');
+                }, 1500);
+                alert('请输入以 http://、https:// 或 www. 开头的有效网址');
+                return;
+            }
+            urlInput.classList.remove('invalid');
+            urls.push(url);
+            const li = document.createElement('li');
+            const span = document.createElement('a');
+            span.className = 'url-text';
+            span.href = url;
+            span.target = '_blank';
+            span.rel = 'noopener';
+            span.textContent = url;
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = '删除';
+            deleteButton.addEventListener('click', () => {
+                const index = urls.indexOf(url);
+                if (index > -1) {
+                    urls.splice(index, 1);
+                    urlList.removeChild(li);
+                    const options = Array.from(filterUrlSelect.options);
+                    const optionToRemove = options.find(option => option.value === url);
+                    if (optionToRemove) {
+                        filterUrlSelect.removeChild(optionToRemove);
+                    }
+                }
+            });
+            li.appendChild(span);
+            li.appendChild(deleteButton);
+            urlList.appendChild(li);
+            urlInput.value = '';
+ 
+            const option = document.createElement('option');
+            option.value = url;
+            option.textContent = url;
+            filterUrlSelect.appendChild(option);
+        });
+
+        importBookmarksButton.addEventListener('click', () => {
+            const file = bookmarkFileInput.files && bookmarkFileInput.files[0];
+            if (!file) {
+                alert('请先在浏览器导出收藏夹HTML文件(.html)，再选择该文件进行导入');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(text, 'text/html');
+                    const anchors = doc.querySelectorAll('a[href]');
+                    let added = 0;
+                    anchors.forEach(a => {
+                        let href = a.getAttribute('href').trim();
+                        if (!href) return;
+                        if (!href.startsWith('http://') && !href.startsWith('https://')) {
+                            // skip non-http links
+                            return;
+                        }
+                        if (!urls.includes(href)) {
+                            urls.push(href);
+                            const li = document.createElement('li');
+                            const span = document.createElement('a');
+                            span.className = 'url-text';
+                            span.href = href;
+                            span.target = '_blank';
+                            span.rel = 'noopener';
+                            span.textContent = href;
+                            const deleteButton = document.createElement('button');
+                            deleteButton.textContent = '删除';
+                            deleteButton.addEventListener('click', () => {
+                                const index = urls.indexOf(href);
+                                if (index > -1) {
+                                    urls.splice(index, 1);
+                                    urlList.removeChild(li);
+                                    const options = Array.from(filterUrlSelect.options);
+                                    const optionToRemove = options.find(option => option.value === href);
+                                    if (optionToRemove) {
+                                        filterUrlSelect.removeChild(optionToRemove);
+                                    }
+                                }
+                            });
+                            li.appendChild(span);
+                            li.appendChild(deleteButton);
+                            urlList.appendChild(li);
+                            const option = document.createElement('option');
+                            option.value = href;
+                            option.textContent = href;
+                            filterUrlSelect.appendChild(option);
+                            added++;
+                        }
+                    });
+                    alert(`导入完成，新增 ${added} 条网址`);
+                } catch (err) {
+                    alert('解析文件时出错，请确认这是一个标准的书签导出 HTML 文件。');
+                }
+            };
+            reader.onerror = () => {
+                alert('读取文件出错');
+            };
+            reader.readAsText(file, 'utf-8');
+        });
+ 
+        // Continuous monitoring removed. Use '检测一次' only.
+
+        checkOnceButton.addEventListener('click', () => {
+            if (!isCheckingOnce) {
+                if (urls.length === 0) {
+                    alert('当前没有要检测的网址，请先添加网址或导入收藏夹。');
+                    return;
+                }
+                isCheckingOnce = true;
+                checkOnceButton.textContent = '停止检测';
+                ongoingControllers = [];
+                stopRequested = false;
+                urls.forEach(url => {
+                    scheduleCheck(url, 0);
+                });
+            } else {
+                // stop all ongoing requests
+                ongoingControllers.forEach(ctrl => {
+                    try { ctrl.abort(); } catch (e) {}
+                });
+                // request stop to prevent scheduled retries from re-starting requests
+                stopRequested = true;
+                ongoingControllers = [];
+                // clear pending queue
+                requestQueue.length = 0;
+                isCheckingOnce = false;
+                checkOnceButton.textContent = '监测一次';
+            }
+        });
+ 
+        filterUrlSelect.addEventListener('change', () => {
+            const selectedUrl = filterUrlSelect.value;
+            displayLogs(selectedUrl);
+        });
+
+        exportLogsButton.addEventListener('click', () => {
+            if (logs.length === 0) {
+                alert('当前没有日志可导出');
+                return;
+            }
+            // 导出为 CSV
+            const headers = ['时间', '网址', '状态', 'HTTP 状态码', '响应时间(ms)', '错误信息'];
+            const rows = logs.map(l => [
+                `"${l.timestamp.replace(/"/g, '""')}"`,
+                `"${l.url.replace(/"/g, '""')}"`,
+                `"${l.status.replace(/"/g, '""')}"`,
+                l.statusCode !== null ? l.statusCode : '',
+                l.responseTime !== null ? l.responseTime : '',
+                l.error ? `"${l.error.replace(/"/g, '""')}"` : ''
+            ].join(','));
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const now = new Date();
+            const pad = (n) => n.toString().padStart(2, '0');
+            const filename = `监测日志-${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+ 
+        function monitorUrlsImmediately(urls, interval) {
+            // 先立即执行一次监测
+            urls.forEach(url => {
+                checkUrl(url, 0);
+            });
+            // 再按间隔时间循环监测
+            intervalId = setInterval(() => {
+                urls.forEach(url => {
+                    checkUrl(url, 0);
+                });
+            }, interval);
+        }
+ 
+        function checkUrl(url, retryCount, method = 'HEAD') {
+            if (!isNetworkConnected) {
+                handleLog(url, null, '电脑网络连接异常');
+                return;
+            }
+            const startTime = performance.now();
+            const controller = new AbortController();
+            const signal = controller.signal;
+            // track controller so we can abort (used by "检测一次"停止功能)
+            ongoingControllers.push(controller);
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+            }, 5000);
+ 
+            const requestOptions = {
+                method: method,
+                mode: 'cors',
+                signal: signal,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+            };
+ 
+            fetch(url, requestOptions)
+              .then(response => {
+                    clearTimeout(timeoutId);
+                    const endTime = performance.now();
+                    const responseTime = endTime - startTime;
+                    const statusCode = response.status;
+                    // response.type can be 'opaque' when blocked by CORS with no-cors mode, here we use statusCode 0
+                    if (response.ok) {
+                        handleLog(url, responseTime, null, statusCode);
+                    } else {
+                        // 如果 HEAD 返回非 ok，尝试用 GET 再检测一次（但只尝试一次）
+                        if (method === 'HEAD' && !stopRequested) {
+                            // schedule immediate GET attempt
+                            scheduleCheck(url, retryCount, 'GET');
+                            // here record the HEAD result as warning but continue to let GET provide final result
+                            let msg = `HEAD 返回 HTTP ${statusCode}`;
+                            handleLog(url, responseTime, msg, statusCode);
+                        } else {
+                            let msg = `HTTP ${statusCode}`;
+                            if (statusCode === 0) msg = '可能的 CORS 或 无法获取状态码';
+                            handleLog(url, responseTime, msg, statusCode);
+                        }
+                    }
+                    isNetworkConnected = true;
+                })
+              .catch(error => {
+                    clearTimeout(timeoutId);
+                    const endTime = performance.now();
+                    const responseTime = endTime - startTime;
+                    if (retryCount < MAX_RETRIES && error.name !== 'AbortError' && !stopRequested) {
+                        setTimeout(() => {
+                            checkUrl(url, retryCount + 1);
+                        }, 1000);
+                    } else {
+                        let errorMessage = error.message;
+                        if (error.name === 'AbortError') {
+                            errorMessage = '请求超时或已取消';
+                        } else if (error.message && error.message.includes('NetworkError')) {
+                            errorMessage = '网络错误，请检查网络连接或代理设置';
+                            isNetworkConnected = false;
+                        }
+                        handleLog(url, responseTime, errorMessage, null);
+                    }
+                })
+              .finally(() => {
+                    // remove controller from tracking
+                    const idx = ongoingControllers.indexOf(controller);
+                    if (idx > -1) ongoingControllers.splice(idx, 1);
+                    // if no more ongoing checks and we were in check-once mode, reset state
+                    if (isCheckingOnce && ongoingControllers.length === 0) {
+                        isCheckingOnce = false;
+                        checkOnceButton.textContent = '监测\n一次';
+                    }
+                });
+        }
+ 
+        function handleLog(url, responseTime, errorMessage, statusCode) {
+            let status;
+            if (errorMessage === '电脑网络连接异常') {
+                status = '异常';
+            } else if (statusCode !== null && statusCode !== undefined && (statusCode < 200 || statusCode >= 400)) {
+                // 非 2xx/3xx 状态视为异常
+                status = '异常';
+                if (!errorMessage) errorMessage = `HTTP 状态 ${statusCode}`;
+            } else if (responseTime!== null && responseTime < 800) {
+                status = '正常';
+                errorMessage = null;
+            } else if (responseTime !== null) {
+                // 响应时间较长但无 HTTP 错误
+                if (!errorMessage) errorMessage = `响应时间过长: ${Math.round(responseTime)} 毫秒`;
+                // 分级：800-3000ms 警告，>3000ms 异常
+                if (responseTime < 3000) {
+                    status = '警告';
+                } else {
+                    status = '异常';
+                }
+            } else {
+                status = '异常';
+                if (!errorMessage) errorMessage = '未知错误';
+            }
+            const log = {
+                url,
+                status,
+                responseTime: responseTime!== null? Math.round(responseTime) : null,
+                statusCode: statusCode !== null && statusCode !== undefined ? statusCode : null,
+                timestamp: new Date().toLocaleString(),
+                error: errorMessage
+            };
+            logs.push(log);
+            if (logs.length > MAX_LOGS) {
+                logs.shift();
+            }
+            requestRender();
+            updateUrlColor(url, status === '正常');
+        }
+
+        // 节流日志渲染，避免每条日志都触发重绘
+        let renderScheduled = false;
+        function requestRender() {
+            if (renderScheduled) return;
+            renderScheduled = true;
+            setTimeout(() => {
+                renderScheduled = false;
+                displayLogs(filterUrlSelect.value);
+            }, 150);
+        }
+ 
+        function updateUrlColor(url, isNormal) {
+            const listItems = urlList.getElementsByTagName('li');
+            for (let i = 0; i < listItems.length; i++) {
+                if (listItems[i].textContent.includes(url)) {
+                    if (isNormal) {
+                        listItems[i].style.color = 'black';
+                    } else {
+                        listItems[i].style.color = 'red';
+                    }
+                    break;
+                }
+            }
+        }
+ 
+        function displayLogs(filterUrl) {
+            logContainer.innerHTML = '';
+            const filteredLogs = filterUrl? logs.filter(log => log.url === filterUrl) : logs;
+            filteredLogs.forEach(log => {
+                const logEntry = document.createElement('p');
+                let statusColor;
+                if (log.status === '正常') {
+                    statusColor = 'black';
+                } else if (log.status === '警告') {
+                    statusColor = 'orange';
+                } else {
+                    statusColor = 'red';
+                }
+                logEntry.style.color = statusColor;
+                logEntry.textContent = `${log.timestamp} - ${log.url} - 状态: ${log.status}`;
+                if (log.statusCode !== null) {
+                    logEntry.textContent += ` - HTTP: ${log.statusCode}`;
+                }
+                if (log.responseTime!== null) {
+                    logEntry.textContent += ` - 响应时间: ${log.responseTime} 毫秒`;
+                }
+                if (log.error) {
+                    logEntry.textContent += ` - 错误信息: ${log.error}`;
+                }
+                logContainer.appendChild(logEntry);
+            });
+            // 自动滚动到最底部显示最新信息
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+    </script>
+    <footer id="site-footer">
+        <div class="footer-inner">
+            <span class="notice">本站内容仅供学习和交流，非商业用途</span>
+            <a class="beian-link" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">浙ICP备2025187466号</a>
+            <a class="gongan-link" href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33030402001483" target="_blank" rel="noopener">
+                <img src="https://www.937788.xyz/gonganbeian.png" alt="公安备案" />浙公网安备33030402001483号
+            </a>
+        </div>
+    </footer>
+</body>
+ 
+</html>
